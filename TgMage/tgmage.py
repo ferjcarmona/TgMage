@@ -84,8 +84,8 @@ def get_first_index_smaller_than(arr, value, warmup):
     
 
 def get_last_index_smaller_than(arr, value, warmup):
-    T_index = 0
-    P_index = 0
+    T_index = -1
+    P_index = -1
     for i in range(len(arr)-1, -1, -1):
         if arr[i,0] >= warmup:
             T_index = i
@@ -161,8 +161,8 @@ def Tg_finder(density, IL, p_value=0.05, warmup=None, verbose=True, save=None):
         print("Glass phase Fitting points: ", np.array([G_Temperature, G_Density]).T)
         
     # Get liquid phase fitting range
-    L_p_value = np.zeros((len(Temperature)-skip+1, 2))
-    for t in range(len(Temperature)-skip, -1, -1):
+    L_p_value = np.zeros((len(Temperature)-skip, 2))
+    for t in range(len(Temperature)-skip-1, -1, -1):
         # Get the fits of phase
         m, b, R, trash, std = linregress(Temperature[t:], Density[t:])
         # Get residuals
@@ -171,9 +171,8 @@ def Tg_finder(density, IL, p_value=0.05, warmup=None, verbose=True, save=None):
         L_p_value[t][0] = Temperature[t]
         L_p_value[t][1] = stats.shapiro(Residuals).pvalue
 
+    print(Temperature[-1]-warmup)
     L_Tstart, L_phase_limit = get_last_index_smaller_than(L_p_value, p_value, Temperature[-1]-warmup)
-    # L_Temperature = Temperature[np.where(Temperature==L_p_value[L_phase_limit][0])[0][0]+1:]
-    # L_Density = Density[np.where(Temperature==L_p_value[L_phase_limit][0])[0][0]+1:]
     L_Temperature = Temperature[np.where(Temperature==L_p_value[L_phase_limit][0])[0][0]:]
     L_Density = Density[np.where(Temperature==L_p_value[L_phase_limit][0])[0][0]:]
 
@@ -183,7 +182,7 @@ def Tg_finder(density, IL, p_value=0.05, warmup=None, verbose=True, save=None):
         print("Liquid p-values:", L_p_value)
         print("Liquid warmup ends: ", L_p_value[L_Tstart][0])
         print(f"Liquid phase fitting range: [{Temperature[-1]}, {L_p_value[L_phase_limit][0]}]")
-        print("Liquid phase fitting points:", np.array([L_Temperature, L_Density]).T)
+        print("Liquid phase fitting points:", np.array([L_Temperature, L_Density]).T)      
     
     # Compute Tg
     G_m, G_b, G_R, trash, std = linregress(G_Temperature, G_Density)
