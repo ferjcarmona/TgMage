@@ -5,7 +5,9 @@ TgMage
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/TgMage/branch/main/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/TgMage/branch/main)
 
 
-Computes Tg
+Computes Tg from density-temperature series. The module tgmage contains the functions used for publication ###.
+
+Dependencies for replicating results and replicating the enviroment can be found in the file TgMage_enviroment.yml 
 
 ### Copyright
 

@@ -8,44 +8,21 @@ import sys
 from scipy.stats import linregress
 from scipy import stats
 
-def canvas(with_attribution=True):
-    """
-    Placeholder function to show example docstring (NumPy format).
-
-    Replace this function and doc string for your own project.
-
-    Parameters
-    ----------
-    with_attribution : bool, Optional, default: True
-        Set whether or not to display who the quote is from.
-
-    Returns
-    -------
-    quote : str
-        Compiled string including quote and optional attribution.
-    """
-
-    quote = "The code is but a canvas to our imagination."
-    if with_attribution:
-        quote += "\n\t- Adapted from Henry David Thoreau"
-    return quote
-
-
 def thermo_extractor(path, wanted_property=None):
     """
-    Placeholder function to show example docstring (NumPy format).
-
-    Replace this function and doc string for your own project.
+    Extracts data from trajectory of provide file. 
 
     Parameters
     ----------
-    with_attribution : bool, Optional, default: True
-        Set whether or not to display who the quote is from.
+    wanted_property=None : string
+       if none returns all data. If specified returns only 
+       the speciifed propertu against time step
 
     Returns
     -------
-    quote : str
-        Compiled string including quote and optional attribution.
+    thermostyle_data, header_list : array, list
+        array containg specified data extracted from
+        trajectory and list of properties in file. 
     """
     header = linecache.getline(path, 1)  # Extract Header
 
@@ -107,24 +84,30 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
     ----------
     density : Numpy array 
         Density vs. thermostat of sim with shape of 
-        [Temperature, Density] with legth of cooling ramp.
+        [Temperature, Density]^N with legth=N of cooling ramp.
         The function expects that the series goes from 
         low T, High D ==> High T, Low D 
-    Label :
-
-    
-    p_value : 
-
-    
+    Label=label : str
+        Simple string to label graph and save file   
+    p_value=0.05 : float
+        Level of confidence for break in linear behaviour.
+        If this is not met, by default the temeparture range
+        picked will be the last 3 density-temperature pairs for
+        the liquid phase nad the first 3 for the liquid phase. 
     warmup=None : 
-
-    
-    verbose=True :
-
-    
+        warmup period to waive p-value criteria starting from the 
+        upper and lower temperature bound or when at least 3 
+        points for each fitting range. If none, by default it will
+        pick 20% of the spanned temperture range. 
+        
+    verbose=0 :
+        Outputs for diagnotsics. verbose=0 will not print anything.
+        Verbose 1 will print the label, warmup period and result
+        and figure. verbose=2 will print density array, p-values 
+        and picked fitting range for each phase.     
     save=None :
-
-            
+        Path to save figure. 
+           
     Returns
     -------
     Tg : float
@@ -217,7 +200,7 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         axs[0, 0].set_xlim((Temperature.min(), Temperature.max()))
         axs[0, 0].vlines(Tg, density[1].min(), density[1].max(), label=r'$T_g$='+f"{round(Tg, 2)}K", color="red")
         axs[0, 0].set_xlabel("Temperature [K]")
-        axs[0, 0].legend(loc=1)
+        axs[0, 0].legend(loc=3)
         
         # Second subplot
         axs[1, 0].scatter(Temperature, Density - [G_m*T+G_b for T in Temperature], marker="x", s=1, color='#dbedf9')
@@ -255,7 +238,7 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
     
         # Add labels to the subplots
         axs[0, 0].text(0.50, 0.89, "A", transform=axs[0, 0].transAxes, ha="left", va="bottom", fontsize=16, fontweight="bold")
-        axs[0, 0].text(0.10, 0.10, label, transform=axs[0, 0].transAxes, ha="left", va="bottom", fontsize=12)
+        axs[0, 0].text(0.65, 0.90, label, transform=axs[0, 0].transAxes, ha="left", va="bottom", fontsize=12)
         axs[0, 1].text(0.50, 0.89, "B", transform=axs[0, 1].transAxes, ha="left", va="bottom", fontsize=16, fontweight="bold")
         axs[1, 0].text(0.50, 0.89, "C", transform=axs[1, 0].transAxes, ha="left", va="bottom", fontsize=16, fontweight="bold")
         axs[1, 1].text(0.50, 0.89, "D", transform=axs[1, 1].transAxes, ha="left", va="bottom", fontsize=16, fontweight="bold")
@@ -270,8 +253,3 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         plt.show()        
         
     return Tg
-
-
-if __name__ == "__main__":
-    # Do something if this file is invoked on its own
-    print(canvas())
