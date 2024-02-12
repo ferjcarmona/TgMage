@@ -10,19 +10,19 @@ from scipy import stats
 
 def thermo_extractor(path, wanted_property=None):
     """
-    Extracts data from trajectory of provide file. 
+    Placeholder function to show example docstring (NumPy format).
+
+    Replace this function and doc string for your own project.
 
     Parameters
     ----------
-    wanted_property=None : string
-       if none returns all data. If specified returns only 
-       the speciifed propertu against time step
+    with_attribution : bool, Optional, default: True
+        Set whether or not to display who the quote is from.
 
     Returns
     -------
-    thermostyle_data, header_list : array, list
-        array containg specified data extracted from
-        trajectory and list of properties in file. 
+    quote : str
+        Compiled string including quote and optional attribution.
     """
     header = linecache.getline(path, 1)  # Extract Header
 
@@ -49,8 +49,8 @@ def thermo_extractor(path, wanted_property=None):
 
 
 def get_first_index_smaller_than(arr, value, warmup):
-    T_index = 0
-    P_index = 0
+    T_index = 1
+    P_index = 1
     for i in range(len(arr)):
         if arr[i,0] <= warmup:
             T_index = i
@@ -62,8 +62,8 @@ def get_first_index_smaller_than(arr, value, warmup):
     
 
 def get_last_index_smaller_than(arr, value, warmup):
-    T_index = -1
-    P_index = -1
+    T_index = -2
+    P_index = -2
     for i in range(len(arr)-1, -1, -1):
         if arr[i,0] >= warmup:
             T_index = i
@@ -98,8 +98,7 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         warmup period to waive p-value criteria starting from the 
         upper and lower temperature bound or when at least 3 
         points for each fitting range. If none, by default it will
-        pick 20% of the spanned temperture range. 
-        
+        pick 20% of the spanned temperture range.       
     verbose=0 :
         Outputs for diagnotsics. verbose=0 will not print anything.
         Verbose 1 will print the label, warmup period and result
@@ -133,47 +132,65 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
     for t in range(len(Temperature)-skip+1):
         # Get the fits of phase
         m, b, R, p, std = linregress(Temperature[:skip+t], Density[:skip+t])
+        
         # Get residuals
         Residuals = Density[:skip+t] - m*Temperature[:skip+t]+b
-        # Get pvalue
+        
+        # Get pvalue      
         G_p_value[t][0] = Temperature[skip+t-1]
-        G_p_value[t][1] = stats.shapiro(Residuals).pvalue
-    
+
+        if len(Residuals) == 3: # Flag for N=3 with know p-value 
+            if round(stats.shapiro(Residuals).statistic, 2) < 0.75:
+                G_p_value[t][1] = 0 
+            else:
+                G_p_value[t][1] = 1-np.pi/6*np.arccos(np.sqrt(stats.shapiro(Residuals).statistic))
+        else:
+            G_p_value[t][1] = stats.shapiro(Residuals).pvalue
+        
     G_Tstart, G_phase_limit = get_first_index_smaller_than(G_p_value, p_value, Temperature[0]+warmup)
-    G_Temperature = Temperature[:np.where(Temperature==G_p_value[G_phase_limit][0])[0][0]+1]
-    G_Density = Density[:np.where(Temperature==G_p_value[G_phase_limit][0])[0][0]+1]
+    G_Temperature = Temperature[:np.where(Temperature==G_p_value[G_phase_limit][0])[0][0]]
+    G_Density = Density[:np.where(Temperature==G_p_value[G_phase_limit][0])[0][0]]
 
     # Diagnostics
     if verbose==2:
         print("\nGlass Diagnostics")
         print("Temperature:", Temperature)
-        print("Glass p-values:", G_p_value)
-        print("Glass warmup ends: ", G_p_value[G_Tstart][0])
-        print(f"Glass phase fitting range [{Temperature[0]}, {G_p_value[G_phase_limit][0]}]")
-        print("Glass phase Fitting points: ", np.array([G_Temperature, G_Density]).T)
+        print("Glass p-values:\n", G_p_value)
+        print("Glass warmup ends:", G_p_value[G_Tstart][0])
+        print(f"Glass phase fitting range [{Temperature[0]}, {G_p_value[G_phase_limit-1][0]}]")
+        print("Glass phase Fitting points:\n ", np.array([G_Temperature, G_Density]).T)
         
     # Get liquid phase fitting range
     L_p_value = np.zeros((len(Temperature)-skip+1, 2))
     for t in range(len(Temperature)-skip, -1, -1):
         # Get the fits of phase
         m, b, R, p, std = linregress(Temperature[t:], Density[t:])
+        
         # Get residuals
         Residuals = Density[t:] - m*Temperature[t:]+b
+        
         # Get pvalue
         L_p_value[t][0] = Temperature[t]
-        L_p_value[t][1] = stats.shapiro(Residuals).pvalue
+
+        if len(Residuals) == 3:
+            if round(stats.shapiro(Residuals).statistic, 2) < 0.75:
+                L_p_value[t][1] = 0 
+            else:
+                L_p_value[t][1] = 1-np.pi/6*np.arccos(np.sqrt(stats.shapiro(Residuals).statistic))
+        else:
+            L_p_value[t][1] = stats.shapiro(Residuals).pvalue
 
     L_Tstart, L_phase_limit = get_last_index_smaller_than(L_p_value, p_value, Temperature[-1]-warmup)
-    L_Temperature = Temperature[np.where(Temperature==L_p_value[L_phase_limit][0])[0][0]:]
-    L_Density = Density[np.where(Temperature==L_p_value[L_phase_limit][0])[0][0]:]
+    L_Temperature = Temperature[np.where(Temperature==L_p_value[L_phase_limit][0])[0][0]+1:]
+    L_Density = Density[np.where(Temperature==L_p_value[L_phase_limit][0])[0][0]+1:]
 
     if verbose==2:
         print("\nLiquid Diagnostics")
         print("Temperature:", Temperature)
-        print("Liquid p-values:", L_p_value)
+        print("Liquid p-values:\n", L_p_value)
         print("Liquid warmup ends: ", L_p_value[L_Tstart][0])
         print(f"Liquid phase fitting range: [{Temperature[-1]}, {L_p_value[L_phase_limit][0]}]")
-        print("Liquid phase fitting points:", np.array([L_Temperature, L_Density]).T)      
+        print("Liquid phase fitting points:\n", np.array([L_Temperature, L_Density]).T)      
     
     # Compute Tg
     G_m, G_b, G_R, trash, std = linregress(G_Temperature, G_Density)
@@ -189,59 +206,60 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         #Title
         # fig.suptitle(f'{label}, My Method')
         
-        # First plot  
-        axs[0, 0].scatter(Temperature, density[1], label="Density", s=1, marker="x", color="black")
-        axs[0, 0].set_ylabel(r"Density [$g/cm^3$]")
-        axs[0, 0].plot(Temperature[:G_phase_limit], [G_m*T+G_b for T in Temperature[:G_phase_limit]], label="Glass Range", lw=2)
+        # A  
+        axs[0, 0].plot(G_Temperature, [G_m*T+G_b for T in G_Temperature], label="Glass Range", lw=2)
         axs[0, 0].plot(Temperature, [G_m*T+G_b for T in Temperature], lw=1, linestyle='dotted', color='C0')
-        axs[0, 0].plot(Temperature[L_phase_limit:], [L_m*T+L_b for T in Temperature[L_phase_limit:]], label="Liquid Range", lw=2)
+        axs[0, 0].plot(L_Temperature, [L_m*T+L_b for T in L_Temperature], label="Liquid Range", lw=2)
         axs[0, 0].plot(Temperature, [L_m*T+L_b for T in Temperature], linestyle='dotted', color='C1')
         axs[0, 0].set_ylim((density[1].min(), density[1].max()))
-        axs[0, 0].set_xlim((Temperature.min(), Temperature.max()))
         axs[0, 0].vlines(Tg, density[1].min(), density[1].max(), label=r'$T_g$='+f"{round(Tg, 2)}K", color="red")
+        axs[0, 0].set_ylabel(r"Density [$g/cm^3$]")
         axs[0, 0].set_xlabel("Temperature [K]")
         axs[0, 0].legend(loc=3)
-        
-        # Second subplot
+        axs[0, 0].scatter(Temperature, density[1], label="Density", s=1, marker="x", color="black")
+            
+        # B
+        axs[0, 1].scatter(L_p_value[L_phase_limit+1:,0],L_p_value[L_phase_limit+1:,1], s=7, color="C1")
+        axs[0, 1].scatter(L_p_value[:,0], L_p_value[:,1], s=1, color="black")
+        axs[0, 1].set_ylabel("p-value")
+        axs[0, 1].set_xlabel("Temperature [K]")
+        axs[0, 1].vlines(L_p_value[L_Tstart][0], -2, 2, label=f"grace period", color="orange")
+        axs[0, 1].hlines(p_value, Temperature.min(), Temperature.max(), label=f"p-value = {p_value}", color="grey", lw=1, linestyle='dotted')
+        axs[0, 1].set_xlim((Temperature.min(), Temperature.max()))
+        axs[0, 1].legend(loc=2)
+        axs[0, 1].set_ylim((0,1))
+
+        # C
         axs[1, 0].scatter(Temperature, Density - [G_m*T+G_b for T in Temperature], marker="x", s=1, color='#dbedf9')
         axs[1, 0].scatter(Temperature, Density - [L_m*T+L_b for T in Temperature], marker="x", s=1, color='#fedcbd')
-        axs[1, 0].scatter(Temperature[:G_phase_limit], Density[:G_phase_limit] - [G_m*T+G_b for T in Temperature[:G_phase_limit]], label="Glass", marker="x", s=2)
-        axs[1, 0].scatter(Temperature[L_phase_limit:], Density[L_phase_limit:] - [L_m*T+L_b for T in Temperature[L_phase_limit:]], label="Liquid", marker="x", s=2)
+        axs[1, 0].scatter(G_Temperature, G_Density - [G_m*T+G_b for T in G_Temperature], label="Glass", s=5)
+        axs[1, 0].scatter(L_Temperature, L_Density - [L_m*T+L_b for T in L_Temperature], label="Liquid", s=5)
         Glass_Residuals = np.array([Density - [G_m*T+G_b for T in Temperature]])
         Liquid_Residuals = np.array([Density - [L_m*T+L_b for T in Temperature]])
         Residuals = np.hstack((Glass_Residuals,Liquid_Residuals))
-        axs[1, 0].set_xlim((Temperature.min(), Temperature.max()))
-        axs[1, 0].set_ylim((Residuals.min(), Residuals.max()))
         axs[1, 0].set_ylabel("Residuals")
         axs[1, 0].set_xlabel("Temperature [K]")
-        axs[1, 0].legend()   
+        axs[1, 0].legend() 
     
-        # Third subplot
-        axs[0, 1].scatter(L_p_value[L_phase_limit:,0],L_p_value[L_phase_limit:,1], marker="x", s=5, color="C1")
-        axs[0, 1].scatter(L_p_value[:,0], L_p_value[:,1], marker="x", s=1, color="black")
-        axs[0, 1].set_ylabel("p-value")
-        axs[0, 1].set_xlabel("Temperature [K]")
-        axs[0, 1].vlines(L_p_value[L_Tstart][0], -2, 2, label=f"warmup, {warmup}K", color="orange")
-        axs[0, 1].set_xlim((Temperature.min(), Temperature.max()))
-        axs[0, 1].set_ylim((0,1))
-    
-        # Fourth subplot (previously second)
-        axs[1, 1].scatter(G_p_value[:G_phase_limit,0], G_p_value[:G_phase_limit,1], marker="x", s=5, color="C0")
-        axs[1, 1].scatter(G_p_value[:,0], G_p_value[:,1], marker="x", s=1, color="black")
-        axs[1, 1].vlines(G_p_value[G_Tstart][0], -2, 2, label=f"warmup, {warmup}K", color="orange")
+        # D
+        axs[1, 1].scatter(G_p_value[:G_phase_limit,0], G_p_value[:G_phase_limit,1], s=7, color="C0")
+        axs[1, 1].scatter(G_p_value[:,0], G_p_value[:,1], s=1, color="black")
+        axs[1, 1].vlines(G_p_value[G_Tstart][0], -2, 2, label=f"grace period", color="orange")
+        axs[1, 1].hlines(p_value, Temperature.min(), Temperature.max(), label=f"p-value = {p_value}", color="grey", lw=1, linestyle='dotted')
         axs[1, 1].set_xlabel("Temperature [K]")
         axs[1, 1].set_ylabel("p-value")
+        axs[1, 1].legend(loc=1)
         axs[1, 1].set_xlim((Temperature.min(), Temperature.max()))
         axs[1, 1].set_ylim((0,1))
         
         # Formatting
     
         # Add labels to the subplots
-        axs[0, 0].text(0.50, 0.89, "A", transform=axs[0, 0].transAxes, ha="left", va="bottom", fontsize=16, fontweight="bold")
-        axs[0, 0].text(0.65, 0.90, label, transform=axs[0, 0].transAxes, ha="left", va="bottom", fontsize=12)
-        axs[0, 1].text(0.50, 0.89, "B", transform=axs[0, 1].transAxes, ha="left", va="bottom", fontsize=16, fontweight="bold")
-        axs[1, 0].text(0.50, 0.89, "C", transform=axs[1, 0].transAxes, ha="left", va="bottom", fontsize=16, fontweight="bold")
-        axs[1, 1].text(0.50, 0.89, "D", transform=axs[1, 1].transAxes, ha="left", va="bottom", fontsize=16, fontweight="bold")
+        axs[0, 0].text(0.5, 0.94, "A", transform=axs[0, 0].transAxes, ha="left", va="bottom", fontsize=14, fontweight="bold")
+        axs[0, 0].text(0.6, 0.90, label, transform=axs[0, 0].transAxes, ha="left", va="bottom", fontsize=12)
+        axs[0, 1].text(0.5, 0.94, "B", transform=axs[0, 1].transAxes, ha="left", va="bottom", fontsize=14, fontweight="bold")
+        axs[1, 0].text(0.5, 0.94, "C", transform=axs[1, 0].transAxes, ha="left", va="bottom", fontsize=14, fontweight="bold")
+        axs[1, 1].text(0.5, 0.94, "D", transform=axs[1, 1].transAxes, ha="left", va="bottom", fontsize=14, fontweight="bold")
     
         # Tight
         plt.tight_layout()

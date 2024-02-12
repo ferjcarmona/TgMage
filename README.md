@@ -11,7 +11,7 @@ Dependencies for replicating results and replicating the enviroment can be found
 
 ### Copyright
 
-Copyright (c) 2023, Fernando Carmona
+Copyright (c) 2023, Fernando Javier Carmona Esteva
 
 
 #### Acknowledgements
