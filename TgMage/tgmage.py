@@ -10,19 +10,26 @@ from scipy import stats
 
 def thermo_extractor(path, wanted_property=None):
     """
-    Placeholder function to show example docstring (NumPy format).
-
-    Replace this function and doc string for your own project.
+    Function to parse generated density versus temperature 
+    curves by following the simulation protocol in the mansucript.
 
     Parameters
     ----------
-    with_attribution : bool, Optional, default: True
-        Set whether or not to display who the quote is from.
+    path : str
+        path of file with data
 
+    wanted_property : str
+        String in file header used to return specific thermodynamic 
+        property. If in file only return time and the wanted property.
+        If None returns all computed properties. 
+        
     Returns
     -------
-    quote : str
+     thermostyle_data : numpy array
         Compiled string including quote and optional attribution.
+
+     header_list : list
+         List of thermodynamic properties header of the file.
     """
     header = linecache.getline(path, 1)  # Extract Header
 
@@ -48,11 +55,11 @@ def thermo_extractor(path, wanted_property=None):
     return thermostyle_data, header_list  # Return the thermo_data and list of properties inside
 
 
-def get_first_index_smaller_than(arr, value, warmup):
+def get_first_index_smaller_than(arr, value, grace):
     T_index = 1
     P_index = 1
     for i in range(len(arr)):
-        if arr[i,0] <= warmup:
+        if arr[i,0] <= grace:
             T_index = i
         elif arr[i,1] <= value:
             P_index = i
@@ -61,11 +68,11 @@ def get_first_index_smaller_than(arr, value, warmup):
     return T_index, P_index  # If no element is found lower than the specified value.
     
 
-def get_last_index_smaller_than(arr, value, warmup):
+def get_last_index_smaller_than(arr, value, grace):
     T_index = -2
     P_index = -2
     for i in range(len(arr)-1, -1, -1):
-        if arr[i,0] >= warmup:
+        if arr[i,0] >= grace:
             T_index = i
         elif arr[i,1] <= value:
             P_index = i
@@ -74,11 +81,11 @@ def get_last_index_smaller_than(arr, value, warmup):
     return T_index, P_index  # If no element is found lower than the specified value.
 
 
-def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save=None):
+def Tg_finder(density, label="Label", p_value=0.05, grace=None, verbose=0, save=None):
     """
-    Placeholder function to show example docstring (NumPy format).
-
-    Replace this function and doc string for your own project.
+    Function that finds Tg for a density temperature series by cumputing 
+    their intersection of longest linear regimes for the glass and liquid 
+    phases given a critical p-value and grace period.
 
     Parameters
     ----------
@@ -94,14 +101,14 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         If this is not met, by default the temeparture range
         picked will be the last 3 density-temperature pairs for
         the liquid phase nad the first 3 for the liquid phase. 
-    warmup=None : 
-        warmup period to waive p-value criteria starting from the 
+    grace=None : 
+        grace period to waive p-value criteria starting from the 
         upper and lower temperature bound or when at least 3 
         points for each fitting range. If none, by default it will
         pick 20% of the spanned temperture range.       
     verbose=0 :
         Outputs for diagnotsics. verbose=0 will not print anything.
-        Verbose 1 will print the label, warmup period and result
+        Verbose 1 will print the label, grace period and result
         and figure. verbose=2 will print density array, p-values 
         and picked fitting range for each phase.     
     save=None :
@@ -120,12 +127,12 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
     
     skip = 3 # number of points to start with
 
-    # Specify Warmup 
-    if warmup is None:
-         warmup = (Temperature[-1]-Temperature[0]) * 0.20 # Pick by default 20% of T-range 
+    # Specify grace 
+    if grace is None:
+         grace = (Temperature[-1]-Temperature[0]) * 0.20 # Pick by default 20% of T-range 
 
     if verbose > 0:
-        print(f"\n{label}, warmup: {warmup}")
+        print(f"\n{label}, grace: {grace}")
         
     # Get glass fitting range
     G_p_value = np.zeros((len(Temperature)-skip+1,2))
@@ -147,7 +154,7 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         else:
             G_p_value[t][1] = stats.shapiro(Residuals).pvalue
         
-    G_Tstart, G_phase_limit = get_first_index_smaller_than(G_p_value, p_value, Temperature[0]+warmup)
+    G_Tstart, G_phase_limit = get_first_index_smaller_than(G_p_value, p_value, G_p_value[0][0]+grace)
     G_Temperature = Temperature[:np.where(Temperature==G_p_value[G_phase_limit][0])[0][0]]
     G_Density = Density[:np.where(Temperature==G_p_value[G_phase_limit][0])[0][0]]
 
@@ -156,8 +163,8 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         print("\nGlass Diagnostics")
         print("Temperature:", Temperature)
         print("Glass p-values:\n", G_p_value)
-        print("Glass warmup ends:", G_p_value[G_Tstart][0])
-        print(f"Glass phase fitting range [{Temperature[0]}, {G_p_value[G_phase_limit-1][0]}]")
+        print("Glass grace ends:", G_p_value[G_Tstart][0])
+        print(f"Glass phase fitting range [{Temperature[0]}, {G_Temperature[-1]}]")
         print("Glass phase Fitting points:\n ", np.array([G_Temperature, G_Density]).T)
         
     # Get liquid phase fitting range
@@ -180,7 +187,7 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         else:
             L_p_value[t][1] = stats.shapiro(Residuals).pvalue
 
-    L_Tstart, L_phase_limit = get_last_index_smaller_than(L_p_value, p_value, Temperature[-1]-warmup)
+    L_Tstart, L_phase_limit = get_last_index_smaller_than(L_p_value, p_value, L_p_value[-1][0]-grace)
     L_Temperature = Temperature[np.where(Temperature==L_p_value[L_phase_limit][0])[0][0]+1:]
     L_Density = Density[np.where(Temperature==L_p_value[L_phase_limit][0])[0][0]+1:]
 
@@ -188,8 +195,8 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         print("\nLiquid Diagnostics")
         print("Temperature:", Temperature)
         print("Liquid p-values:\n", L_p_value)
-        print("Liquid warmup ends: ", L_p_value[L_Tstart][0])
-        print(f"Liquid phase fitting range: [{Temperature[-1]}, {L_p_value[L_phase_limit][0]}]")
+        print("Liquid grace ends: ", L_p_value[L_Tstart][0])
+        print(f"Liquid phase fitting range: [{Temperature[-1]}, {L_Temperature[0]}]")
         print("Liquid phase fitting points:\n", np.array([L_Temperature, L_Density]).T)      
     
     # Compute Tg
@@ -219,8 +226,8 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         axs[0, 0].scatter(Temperature, density[1], label="Density", s=1, marker="x", color="black")
             
         # B
-        axs[0, 1].scatter(L_p_value[L_phase_limit+1:,0],L_p_value[L_phase_limit+1:,1], s=7, color="C1")
-        axs[0, 1].scatter(L_p_value[:,0], L_p_value[:,1], s=1, color="black")
+        axs[0, 1].scatter(L_p_value[L_phase_limit+1:,0],L_p_value[L_phase_limit+1:,1], s=30, color="C1")
+        axs[0, 1].scatter(L_p_value[:,0], L_p_value[:,1], s=12, color="black")
         axs[0, 1].set_ylabel("p-value")
         axs[0, 1].set_xlabel("Temperature [K]")
         axs[0, 1].vlines(L_p_value[L_Tstart][0], -2, 2, label=f"grace period", color="orange")
@@ -230,10 +237,10 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         axs[0, 1].set_ylim((0,1))
 
         # C
-        axs[1, 0].scatter(Temperature, Density - [G_m*T+G_b for T in Temperature], marker="x", s=1, color='#dbedf9')
-        axs[1, 0].scatter(Temperature, Density - [L_m*T+L_b for T in Temperature], marker="x", s=1, color='#fedcbd')
-        axs[1, 0].scatter(G_Temperature, G_Density - [G_m*T+G_b for T in G_Temperature], label="Glass", s=5)
-        axs[1, 0].scatter(L_Temperature, L_Density - [L_m*T+L_b for T in L_Temperature], label="Liquid", s=5)
+        axs[1, 0].scatter(Temperature, Density - [G_m*T+G_b for T in Temperature], marker="x", s=15, color='#dbedf9')
+        axs[1, 0].scatter(Temperature, Density - [L_m*T+L_b for T in Temperature], marker="x", s=15, color='#fedcbd')
+        axs[1, 0].scatter(G_Temperature, G_Density - [G_m*T+G_b for T in G_Temperature], label="Glass", s=15)
+        axs[1, 0].scatter(L_Temperature, L_Density - [L_m*T+L_b for T in L_Temperature], label="Liquid", s=15)
         Glass_Residuals = np.array([Density - [G_m*T+G_b for T in Temperature]])
         Liquid_Residuals = np.array([Density - [L_m*T+L_b for T in Temperature]])
         Residuals = np.hstack((Glass_Residuals,Liquid_Residuals))
@@ -242,8 +249,8 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
         axs[1, 0].legend() 
     
         # D
-        axs[1, 1].scatter(G_p_value[:G_phase_limit,0], G_p_value[:G_phase_limit,1], s=7, color="C0")
-        axs[1, 1].scatter(G_p_value[:,0], G_p_value[:,1], s=1, color="black")
+        axs[1, 1].scatter(G_p_value[:G_phase_limit,0], G_p_value[:G_phase_limit,1], s=30, color="C0")
+        axs[1, 1].scatter(G_p_value[:,0], G_p_value[:,1], s=12, color="black")
         axs[1, 1].vlines(G_p_value[G_Tstart][0], -2, 2, label=f"grace period", color="orange")
         axs[1, 1].hlines(p_value, Temperature.min(), Temperature.max(), label=f"p-value = {p_value}", color="grey", lw=1, linestyle='dotted')
         axs[1, 1].set_xlabel("Temperature [K]")
@@ -266,7 +273,7 @@ def Tg_finder(density, label="Label", p_value=0.05, warmup=None, verbose=0, save
     
     # Save
     if save is not None:
-        plt.savefig(f"{save}/{label}_{warmup}.png", dpi=600)
+        plt.savefig(f"{save}/{label}_{grace}_{np.round(p_value,2)}.png", dpi=600)
     elif verbose==1 or verbose==2:
         plt.show()        
         
