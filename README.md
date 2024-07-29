@@ -5,7 +5,10 @@ TgMage
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/TgMage/branch/main/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/TgMage/branch/main)
 
 
-Computes Tg from density-temperature series. The module tgmage contains the functions used for publication ###.
+Computes Tg from density-temperature series. The module tgmage contains the functions used for publication: Consistent and reproducible computation of the glass transition temperature from molecular dynamics simulations. 
+
+J. Chem. Phys. 161, 014108 (2024)
+https://doi.org/10.1063/5.0207835
 
 Dependencies for replicating results and replicating the enviroment can be found in the file TgMage_enviroment.yml 
 
